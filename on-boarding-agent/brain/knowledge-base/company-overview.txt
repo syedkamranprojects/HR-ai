@@ -1,0 +1,36 @@
+Centegy Technologies -- Company Overview
+
+Centegy Technologies is a technology solutions provider that licenses,
+implements, and supports enterprise applications for the Sales &
+Distribution and Insurance industries. The company's motto is "People.
+Expertise. Integrity."
+
+What we do:
+- Sales & Distribution: our flagship S&D Pro suite (the Sales &
+  Distribution Management Suite) covers secondary sales, distributor
+  operations, sales force automation, outlet and customer management, and
+  asset management.
+- Insurance Solutions: Java-based policy and claims administration
+  platforms for general and health insurers, including ILAS, the General
+  Takaful Suite, and GLAS.
+
+Scale:
+- Sales & Distribution: 30 global implementations, around 50,000 system
+  users, and around 3,000,000 outlets served.
+- Insurance: 44 solution implementations, around 1,000,000 policies under
+  administration, around 400,000 claims processed, and around
+  200,000,000 in gross written premiums/contributions.
+- Centegy's solutions are implemented across roughly 66 countries in the
+  Middle East, Africa, Asia, and the Pacific.
+
+Notable clients include Unilever, L'Oreal, Shell, Colgate, Alinma Tokio
+Marine, LIA, Oriental, Jubilee Life, Adamjee Insurance, ABF Sugar, and
+Takaful Limited (UK).
+
+Office locations:
+- International Headquarters: Dubai, UAE (Office E, 23rd Floor, Gold
+  Tower, Jumeirah Lake Towers)
+- Global Development & Support Center: Karachi, Pakistan
+- Regional Office: Lahore, Pakistan
+
+Contact: contact@centegytechnologies.com, +971 4 552 6771
