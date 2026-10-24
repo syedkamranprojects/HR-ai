@@ -27,6 +27,11 @@ import java.util.concurrent.CompletableFuture;
 public final class ChatCompletionsHandler implements Handler {
 
     private static final Logger log = LoggerFactory.getLogger(ChatCompletionsHandler.class);
+    // Separate, grep-able logger: one JSON line per turn, parsed by eval/
+    // tooling rather than read by humans. Kept distinct from `log` above so
+    // the two can be filtered/routed independently if this grows a real
+    // log pipeline later.
+    private static final Logger turnLog = LoggerFactory.getLogger("dev.voiceagent.brain.TurnEvents");
 
     private final HrOnboardingAgent agent;
     private final ObjectMapper objectMapper;
@@ -62,6 +67,8 @@ public final class ChatCompletionsHandler implements Handler {
         long created = Instant.now().getEpochSecond();
         String model = request.model() == null ? "brain" : request.model();
 
+        TurnLog turn = new TurnLog(chunkId, history.get(history.size() - 1).content());
+
         ctx.contentType("text/event-stream");
         ctx.header("Cache-Control", "no-cache");
         ctx.header("Connection", "keep-alive");
@@ -71,25 +78,44 @@ public final class ChatCompletionsHandler implements Handler {
         ctx.future(() -> done);
 
         TokenStream stream = agent.chat(history);
-        stream.onPartialResponse(partial -> writeChunk(out, chunkId, created, model, stripMarkdown(partial), null))
+        stream.onPartialResponse(partial -> {
+                    turn.recordFirstToken();
+                    String clean = stripMarkdown(partial);
+                    turn.output += clean;
+                    writeChunk(out, chunkId, created, model, clean, null);
+                })
                 .onPartialThinking(thinking -> log.debug("model thinking (not sent to TTS): {}", thinking.text()))
-                .onPartialToolCall(call -> log.debug("partial tool call (not sent to TTS): {}", call.name()))
-                .onToolExecuted(execution -> log.debug(
-                        "tool executed (not sent to TTS): {} -> {}",
-                        execution.request().name(), execution.result()
-                ))
+                .onToolExecuted(execution -> {
+                    turn.recordToolCall(
+                            execution.request().name(), execution.request().arguments(),
+                            execution.result(), execution.hasFailed()
+                    );
+                    log.debug("tool executed (not sent to TTS): {} -> {}", execution.request().name(), execution.result());
+                })
                 .onCompleteResponse(complete -> {
                     writeChunk(out, chunkId, created, model, null, "stop");
                     writeRaw(out, "data: [DONE]\n\n");
                     closeQuietly(out);
+                    turn.finish(false);
+                    logTurn(turn);
                     done.complete(null);
                 })
                 .onError(error -> {
                     log.error("LLM streaming error", error);
                     closeQuietly(out);
+                    turn.finish(true);
+                    logTurn(turn);
                     done.completeExceptionally(error);
                 })
                 .start();
+    }
+
+    private void logTurn(TurnLog turn) {
+        try {
+            turnLog.info(objectMapper.writeValueAsString(turn));
+        } catch (IOException e) {
+            log.warn("failed to serialize turn log", e);
+        }
     }
 
     /**

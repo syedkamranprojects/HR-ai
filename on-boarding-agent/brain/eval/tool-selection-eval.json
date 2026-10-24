@@ -1,0 +1,13 @@
+[
+  {"query": "How many annual leaves am I entitled to?", "expectedTools": ["searchCompanyPolicies"]},
+  {"query": "What is the dress code?", "expectedTools": ["searchCompanyPolicies"]},
+  {"query": "Tell me about the provident fund loan", "expectedTools": ["searchCompanyPolicies"]},
+  {"query": "What time should I arrive for work?", "expectedTools": ["searchCompanyPolicies"]},
+  {"query": "What is the maternity leave policy?", "expectedTools": ["searchCompanyPolicies"]},
+  {"query": "I want to talk to a human from HR", "expectedTools": ["escalateToHuman"]},
+  {"query": "Can you connect me with someone in HR please", "expectedTools": ["escalateToHuman"]},
+  {"query": "What's the WiFi password for the office?", "expectedTools": ["escalateToHuman"]},
+  {"query": "What is the capital of France?", "expectedTools": []},
+  {"query": "What's 5 plus 7?", "expectedTools": []},
+  {"query": "Thanks, that's all I needed", "expectedTools": []}
+]
