@@ -148,10 +148,35 @@ export default function PostJobPage() {
   )
 
   const copyText = useCallback((id, posting) => {
-    navigator.clipboard?.writeText(postingAsText(posting)).then(() => {
+    const text = postingAsText(posting)
+    const markCopied = () => {
       setCopiedId(id)
       setTimeout(() => setCopiedId(null), 1500)
-    })
+    }
+    // navigator.clipboard can reject (e.g. permission denied, no recent user
+    // gesture) with no visible symptom other than the button never updating
+    // -- fall back to the older execCommand approach rather than fail silently.
+    const fallback = () => {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      try {
+        if (document.execCommand('copy')) markCopied()
+      } catch {
+        // nothing more we can do; the posting is still visible to copy by hand
+      } finally {
+        document.body.removeChild(textarea)
+      }
+    }
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(markCopied).catch(fallback)
+    } else {
+      fallback()
+    }
   }, [])
 
   const startOver = useCallback(() => {
