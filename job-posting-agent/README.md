@@ -17,24 +17,38 @@ hiring-decision tools).
 
 ## Status
 
-**Milestone 1 (job posting drafter) is done.** Java + LangChain4j, same
-stack and Groq provider as [`on-boarding-agent/brain`](../on-boarding-agent/brain/),
-for consistency. Given a free-text role description, `POST /v1/draft-posting`
-returns a structured draft (title, must-have requirements, preferred
-criteria, education, employment type, location) as JSON -- HR reviews and
-edits it before posting anywhere; nothing here publishes on its own.
+**Milestone 1 (job posting drafter, backend + UI) is done.** Backend: Java +
+LangChain4j, same stack and Groq provider as
+[`on-boarding-agent/brain`](../on-boarding-agent/brain/), for consistency.
+Given a free-text role description, `POST /v1/draft-posting` returns a
+structured draft (title, must-have requirements, preferred criteria,
+education, employment type, location) as JSON. UI: a React (Vite) page,
+styled to match `on-boarding-agent/ui`'s layout and branding (same color
+tokens, card/topbar CSS, Centegy logo), where HR types a role description
+and gets back a reviewable draft with a "copy as text" action for pasting
+into LinkedIn or the careers page -- HR always posts it manually; nothing
+here publishes on its own. Drafts only persist for the current browser
+session (no backend storage yet).
 
 Not yet built: email inbox monitoring (planned: Gmail API) and resume
 parsing/scoring against a posting's criteria.
 
 ## Running it locally
 
-```
-mvn package
-GROQ_API_KEY=... java -jar target/job-posting-agent.jar
-```
+Two processes:
 
-Then:
+1. **Backend**:
+   ```
+   mvn package
+   GROQ_API_KEY=... java -jar target/job-posting-agent.jar
+   ```
+2. **UI** (see [`ui/.env.example`](ui/.env.example) for `VITE_JOBS_URL`):
+   ```
+   cd ui && npm install && npm run dev
+   ```
+   then open the printed localhost URL (defaults to `http://localhost:5174`).
+
+Or test the backend directly:
 
 ```
 curl http://localhost:8081/v1/draft-posting \
@@ -42,4 +56,4 @@ curl http://localhost:8081/v1/draft-posting \
   -d '{"prompt":"We need a mid-level backend engineer who knows Java and Spring Boot..."}'
 ```
 
-See [`.env.example`](.env.example) for configuration.
+See [`.env.example`](.env.example) for backend configuration.

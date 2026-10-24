@@ -3,6 +3,10 @@ target/
 dependency-reduced-pom.xml
 *.class
 
+# Node / Vite
+ui/node_modules/
+ui/dist/
+
 # Env files (never commit real secrets)
 .env
 *.env
