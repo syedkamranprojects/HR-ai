@@ -5,11 +5,13 @@ import dev.hrai.jobposting.model.JobPosting;
 import dev.hrai.jobposting.model.Posting;
 import dev.hrai.jobposting.resume.ResumeInboxWatcher;
 import dev.hrai.jobposting.store.PostingStore;
+import dev.hrai.jobposting.util.Slug;
 import io.javalin.http.Context;
 import io.javalin.http.Handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
@@ -38,7 +40,7 @@ public final class OpenPostingHandler implements Handler {
         try {
             JobPosting jobPosting = objectMapper.readValue(ctx.body(), JobPosting.class);
             String id = UUID.randomUUID().toString();
-            String inboxDir = inboxRoot.resolve(id).toAbsolutePath().toString();
+            String inboxDir = resolveFriendlyInboxDir(jobPosting.title());
 
             Posting posting = Posting.open(id, jobPosting, inboxDir);
             postingStore.save(posting);
@@ -49,5 +51,16 @@ public final class OpenPostingHandler implements Handler {
             log.error("failed to open posting for applications", e);
             ctx.status(502).json(new DraftPostingHandler.ErrorResponse("failed to open posting: " + e.getMessage()));
         }
+    }
+
+    /** {@code inbox/<title-slug>}, deduplicated with a numeric suffix if that folder's already taken. */
+    private String resolveFriendlyInboxDir(String title) {
+        String baseSlug = Slug.of(title);
+        String slug = baseSlug;
+        int suffix = 2;
+        while (Files.exists(inboxRoot.resolve(slug))) {
+            slug = baseSlug + "-" + suffix++;
+        }
+        return inboxRoot.resolve(slug).toAbsolutePath().toString();
     }
 }
