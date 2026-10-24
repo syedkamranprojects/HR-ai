@@ -1,0 +1,18 @@
+# Java / Maven
+target/
+dependency-reduced-pom.xml
+*.class
+
+# Env files (never commit real secrets)
+.env
+*.env
+!*.env.example
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

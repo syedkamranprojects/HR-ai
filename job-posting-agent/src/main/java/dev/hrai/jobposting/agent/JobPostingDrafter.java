@@ -1,0 +1,52 @@
+package dev.hrai.jobposting.agent;
+
+import dev.hrai.jobposting.model.JobPosting;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.SystemMessage;
+
+/**
+ * Drafts a structured {@link JobPosting} from HR's free-text description of
+ * a role. This is a draft only -- HR reviews and edits it before posting
+ * anywhere; nothing here publishes on its own.
+ */
+public final class JobPostingDrafter {
+
+    private static final String SYSTEM_PROMPT = """
+            You turn a recruiter's free-text description of a role into a
+            structured job posting draft. Separate hard requirements (a
+            candidate must meet these to be considered at all) from preferred
+            criteria (nice to have; a strong candidate may lack some of
+            these) -- do not put the same requirement in both lists. If the
+            prompt doesn't state something (employment type, location,
+            education), make a reasonable best guess based on the role
+            rather than leaving it empty, except educationRequirements: leave
+            that an empty list if the prompt gives no signal either way.
+            Write the summary in plain, professional language suitable for a
+            public job listing, not a restatement of these instructions.
+            """;
+
+    private final Drafter drafter;
+
+    public JobPostingDrafter(String baseUrl, String apiKey, String modelName) {
+        ChatModel model = OpenAiChatModel.builder()
+                .baseUrl(baseUrl)
+                .apiKey(apiKey)
+                .modelName(modelName)
+                .build();
+        this.drafter = AiServices.create(Drafter.class, model);
+    }
+
+    public JobPosting draft(String prompt) {
+        if (prompt == null || prompt.isBlank()) {
+            throw new IllegalArgumentException("prompt must not be blank");
+        }
+        return drafter.draft(prompt);
+    }
+
+    private interface Drafter {
+        @SystemMessage(SYSTEM_PROMPT)
+        JobPosting draft(String rolePrompt);
+    }
+}

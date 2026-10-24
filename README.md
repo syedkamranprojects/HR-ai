@@ -13,13 +13,15 @@ sharing one repository.
   React web UI. All core milestones are done and verified live; see its own
   README for architecture, status, and how to run it.
 
-- **[`job-posting-agent/`](job-posting-agent/)** — planned, not started. HR
-  gives a free-text prompt describing a role, the agent drafts a structured
-  job posting, HR reviews and posts it manually, and the agent later scores
-  incoming applications against the posting's criteria — always shortlisting
-  for human review, never auto-rejecting or auto-inviting. See its own
-  README for the full scoping notes, including the compliance reasoning
-  behind keeping a human in the loop.
+- **[`job-posting-agent/`](job-posting-agent/)** — HR gives a free-text
+  prompt describing a role, the agent drafts a structured job posting, HR
+  reviews and posts it manually, and the agent will later score incoming
+  applications against the posting's criteria — always shortlisting for
+  human review, never auto-rejecting or auto-inviting. The drafter (Java +
+  LangChain4j, same stack as on-boarding-agent) is done; email monitoring
+  and resume scoring are not yet built. See its own README for the full
+  scoping notes, including the compliance reasoning behind keeping a human
+  in the loop.
 
 ## Repo layout
 
