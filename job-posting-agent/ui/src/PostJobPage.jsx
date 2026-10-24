@@ -20,11 +20,15 @@ function postingAsText(posting) {
   if (posting.educationRequirements.length > 0) {
     lines.push('', 'Education:', ...posting.educationRequirements.map((r) => `- ${r}`))
   }
+  if (posting.applicationEmail) {
+    lines.push('', `To apply, send your resume to ${posting.applicationEmail}.`)
+  }
   return lines.join('\n')
 }
 
 export default function PostJobPage() {
   const [prompt, setPrompt] = useState('')
+  const [applicationEmail, setApplicationEmail] = useState('')
   const [drafts, setDrafts] = useState([])
   const [expandedId, setExpandedId] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -41,7 +45,7 @@ export default function PostJobPage() {
         const res = await fetch(`${JOBS_URL}/v1/draft-posting`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: prompt.trim() }),
+          body: JSON.stringify({ prompt: prompt.trim(), applicationEmail: applicationEmail.trim() || null }),
         })
         if (!res.ok) throw new Error(`Request failed (${res.status})`)
         const posting = await res.json()
@@ -49,6 +53,7 @@ export default function PostJobPage() {
         setDrafts((prev) => [{ id, posting }, ...prev])
         setExpandedId(id)
         setPrompt('')
+        setApplicationEmail('')
       } catch (err) {
         setError('Could not draft a posting. Please try again.')
         console.error(err)
@@ -56,7 +61,7 @@ export default function PostJobPage() {
         setSubmitting(false)
       }
     },
-    [prompt],
+    [prompt, applicationEmail],
   )
 
   const copyText = useCallback((id, posting) => {
@@ -94,6 +99,15 @@ export default function PostJobPage() {
               placeholder="e.g. We need a mid-level backend engineer who knows Java and Spring Boot, has worked with Postgres, and ideally has some AWS experience. Remote-friendly, full-time."
               rows={4}
               required
+            />
+          </label>
+          <label>
+            Where should applicants send their resume? <span className="optional">(optional, but recommended)</span>
+            <input
+              type="email"
+              value={applicationEmail}
+              onChange={(e) => setApplicationEmail(e.target.value)}
+              placeholder="e.g. careers@centegytechnologies.com"
             />
           </label>
           <button type="submit" className="start-button admin-submit" disabled={submitting || !prompt.trim()}>
@@ -167,6 +181,18 @@ export default function PostJobPage() {
                         </ul>
                       </div>
                     )}
+
+                    <div className="posting-section">
+                      <h3>Apply to</h3>
+                      {posting.applicationEmail ? (
+                        <p className="posting-email">{posting.applicationEmail}</p>
+                      ) : (
+                        <p className="posting-email-missing">
+                          No application email set -- add one before posting this externally, so
+                          candidates know where to send their resume.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
               </li>

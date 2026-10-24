@@ -29,7 +29,7 @@ public final class DraftPostingHandler implements Handler {
             return;
         }
         try {
-            JobPosting posting = drafter.draft(request.prompt());
+            JobPosting posting = drafter.draft(request.prompt(), request.applicationEmail());
             ctx.json(posting);
         } catch (Exception e) {
             log.error("failed to draft job posting", e);
@@ -37,7 +37,7 @@ public final class DraftPostingHandler implements Handler {
         }
     }
 
-    public record Request(String prompt) {
+    public record Request(String prompt, String applicationEmail) {
     }
 
     public record ErrorResponse(String error) {

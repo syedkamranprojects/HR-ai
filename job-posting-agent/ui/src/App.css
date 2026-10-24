@@ -138,6 +138,11 @@
   color: var(--color-navy);
 }
 
+.admin-form .optional {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
 .admin-form input,
 .admin-form textarea {
   border: 1px solid var(--color-border);
@@ -267,4 +272,16 @@
 
 .posting-section li {
   margin-bottom: 4px;
+}
+
+.posting-email {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-navy);
+}
+
+.posting-email-missing {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: 0.85rem;
 }
