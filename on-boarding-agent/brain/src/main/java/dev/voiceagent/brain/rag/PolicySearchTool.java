@@ -18,14 +18,18 @@ public final class PolicySearchTool {
         this.knowledgeBase = knowledgeBase;
     }
 
-    @Tool("Search Horizon Labs company policies (time off, benefits, code of conduct, "
+    @Tool("Search Centegy Technologies company policies (leaves, medical/insurance, "
+            + "conveyance, meals, provident fund, loans, timing/attendance, dress code, "
             + "company overview) for information relevant to the employee's question. "
             + "Always use this before answering any question about company policy, "
             + "benefits, or the company itself -- never guess or make up policy details.")
     public String searchCompanyPolicies(@P("the question or topic to search for") String query) {
         log.info("searchCompanyPolicies called with query: {}", query);
         try {
-            List<String> matches = knowledgeBase.search(query, 3);
+            // Kept small (2, not more) to limit tokens-per-request given
+            // Groq's free-tier 8000 TPM cap -- see HrOnboardingAgent's
+            // memory-window comment for the same constraint.
+            List<String> matches = knowledgeBase.search(query, 2);
             log.info("searchCompanyPolicies found {} matches", matches.size());
             if (matches.isEmpty()) {
                 return "No relevant company policy information was found for this query.";

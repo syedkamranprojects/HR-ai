@@ -85,7 +85,13 @@ public final class HrOnboardingAgent {
             throw new IllegalArgumentException("history must contain at least one message");
         }
 
-        ChatMemory memory = MessageWindowChatMemory.withMaxMessages(50);
+        // Kept small deliberately: RAG tool results (policy-doc chunks) get
+        // embedded into history and resent on every subsequent turn, so a
+        // generous window makes token usage balloon as a conversation goes
+        // on -- which is what was pushing us over Groq's free-tier 8000
+        // tokens/minute cap. 12 messages (~6 turns) keeps enough context
+        // for natural conversation continuity without that growth.
+        ChatMemory memory = MessageWindowChatMemory.withMaxMessages(12);
         for (Turn turn : history.subList(0, history.size() - 1)) {
             memory.add(turn.isUser() ? UserMessage.from(turn.content()) : AiMessage.from(turn.content()));
         }

@@ -13,7 +13,7 @@ import aiohttp
 from dotenv import load_dotenv
 from livekit.agents import Agent, AgentSession, ErrorEvent, JobContext, JobProcess, TurnHandlingOptions, WorkerOptions, cli, room_io
 from livekit.agents.voice.events import LLMError
-from livekit.plugins import cartesia, deepgram, openai, silero
+from livekit.plugins import cartesia, deepgram, openai, silero, speechmatics
 
 load_dotenv()
 
@@ -29,6 +29,31 @@ BRAIN_ROOT_URL = os.environ.get("BRAIN_ROOT_URL", "http://localhost:8080")
 # but not Urdu) -- so this is a single fixed STT language, not auto-detect.
 # Set DEEPGRAM_LANGUAGE=ur for an employee who'll speak Urdu.
 DEEPGRAM_LANGUAGE = os.environ.get("DEEPGRAM_LANGUAGE", "en-US")
+
+# Provider choice is configurable so Deepgram/Cartesia stay the default and
+# working path, with Speechmatics (STT + TTS, recurring free tier, no
+# streaming on its TTS side) available as a drop-in swap via env vars.
+STT_PROVIDER = os.environ.get("STT_PROVIDER", "deepgram")
+TTS_PROVIDER = os.environ.get("TTS_PROVIDER", "cartesia")
+SPEECHMATICS_LANGUAGE = os.environ.get("SPEECHMATICS_LANGUAGE", "en")
+SPEECHMATICS_VOICE = os.environ.get("SPEECHMATICS_VOICE", "sarah")
+
+
+def build_stt():
+    if STT_PROVIDER == "speechmatics":
+        return speechmatics.STT(model="linden-1", language=SPEECHMATICS_LANGUAGE)
+    if STT_PROVIDER == "deepgram":
+        return deepgram.STT(model="nova-3", language=DEEPGRAM_LANGUAGE)
+    raise ValueError(f"Unknown STT_PROVIDER: {STT_PROVIDER!r}")
+
+
+def build_tts():
+    if TTS_PROVIDER == "speechmatics":
+        return speechmatics.TTS(voice=SPEECHMATICS_VOICE)
+    if TTS_PROVIDER == "cartesia":
+        return cartesia.TTS()
+    raise ValueError(f"Unknown TTS_PROVIDER: {TTS_PROVIDER!r}")
+
 
 FALLBACK_MESSAGE = (
     "Sorry, I'm having trouble connecting right now. Please try again in a "
@@ -73,13 +98,13 @@ async def entrypoint(ctx: JobContext) -> None:
 
     session = AgentSession(
         vad=ctx.proc.userdata["vad"],
-        stt=deepgram.STT(model="nova-3", language=DEEPGRAM_LANGUAGE),
+        stt=build_stt(),
         llm=openai.LLM(
             model="brain",
             base_url=BRAIN_BASE_URL,
             api_key="not-needed",
         ),
-        tts=cartesia.TTS(),
+        tts=build_tts(),
         # Milestone 8: tuned for an onboarding conversation's pace -- quick
         # enough to feel responsive, but with enough max delay that someone
         # pausing mid-thought isn't cut off.

@@ -1,2 +1,2 @@
-livekit-agents[deepgram,cartesia,openai,silero,turn-detector]>=1.6
+livekit-agents[deepgram,cartesia,openai,silero,turn-detector,speechmatics]>=1.8
 python-dotenv>=1.0
