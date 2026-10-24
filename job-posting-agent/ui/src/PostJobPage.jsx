@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 const JOBS_URL = import.meta.env.VITE_JOBS_URL || 'http://localhost:8081'
 
@@ -174,10 +175,34 @@ export default function PostJobPage() {
   const [error, setError] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
   const [candidateScores, setCandidateScores] = useState([]) // { id, fileName, status, score?, error? }
+  const [openedPosting, setOpenedPosting] = useState(null) // { id, inboxDir } for the posting currently shown
+  const [opening, setOpening] = useState(false)
   const bottomRef = useRef(null)
   const resumeInputRef = useRef(null)
 
-  const latestPosting = [...messages].reverse().find((m) => m.role === 'assistant')?.posting ?? null
+  const latestMessageId = [...messages].reverse().find((m) => m.role === 'assistant')?.id ?? null
+  const latestPosting = messages.find((m) => m.id === latestMessageId)?.posting ?? null
+
+  const handleOpenForApplications = useCallback(async () => {
+    if (!latestPosting || opening) return
+    setOpening(true)
+    setError(null)
+    try {
+      const res = await fetch(`${JOBS_URL}/v1/postings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(latestPosting),
+      })
+      if (!res.ok) throw new Error(`Request failed (${res.status})`)
+      const posting = await res.json()
+      setOpenedPosting({ id: posting.id, inboxDir: posting.inboxDir, forMessageId: latestMessageId })
+    } catch (err) {
+      setError('Could not open this posting for applications. Please try again.')
+      console.error(err)
+    } finally {
+      setOpening(false)
+    }
+  }, [latestPosting, latestMessageId, opening])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -260,6 +285,7 @@ export default function PostJobPage() {
     setDraft('')
     setError(null)
     setCandidateScores([])
+    setOpenedPosting(null)
   }, [])
 
   const handleResumeFiles = useCallback(
@@ -345,6 +371,30 @@ export default function PostJobPage() {
         )}
         <div ref={bottomRef} />
       </div>
+
+      {latestPosting && (
+        <div className="score-section open-section">
+          {openedPosting?.forMessageId === latestMessageId ? (
+            <div className="score-section-row">
+              <span>
+                Open for applications -- drop resumes into{' '}
+                <code className="inbox-path">{openedPosting.inboxDir}</code>, or{' '}
+                <Link to="/candidates">review candidates</Link>.
+              </span>
+            </div>
+          ) : (
+            <div className="score-section-row">
+              <span>
+                Open <strong>{latestPosting.title}</strong> for applications
+                <span className="optional"> -- watches a folder for incoming resumes and scores them automatically</span>
+              </span>
+              <button className="copy-button" onClick={handleOpenForApplications} disabled={opening}>
+                {opening ? 'Opening…' : 'Open for applications'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {latestPosting && (
         <div className="score-section">

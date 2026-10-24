@@ -34,6 +34,17 @@
   padding-left: 16px;
 }
 
+.topbar-nav a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.topbar-nav a:hover {
+  color: var(--color-accent);
+}
+
 .main {
   flex: 1;
   display: flex;
@@ -244,6 +255,24 @@
   color: var(--color-text-muted);
 }
 
+.score-section-row a {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.open-section {
+  border-top: none;
+  padding-top: 0;
+}
+
+.inbox-path {
+  background: var(--color-bg);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
 .score-list {
   display: flex;
   flex-direction: column;
@@ -305,6 +334,64 @@
 .score-recommendation {
   margin: 0;
   font-style: italic;
+}
+
+/* Candidates page */
+
+.candidates-page {
+  max-width: 720px;
+}
+
+.posting-group {
+  text-align: left;
+}
+
+.posting-group .score-list {
+  max-height: none;
+  overflow: visible;
+}
+
+.candidate-card {
+  background: var(--color-white);
+}
+
+.candidate-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.candidate-approve {
+  padding: 8px 20px;
+  font-size: 0.82rem;
+}
+
+.candidate-status {
+  margin-top: 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.candidate-status-approved {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.candidate-status-rejected {
+  background: #f3f4f6;
+  color: var(--color-text-muted);
+}
+
+.candidates-decided-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 20px 0 4px;
 }
 
 /* Email field + chat input */

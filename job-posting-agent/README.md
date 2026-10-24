@@ -49,8 +49,35 @@ might reveal) and to never phrase anything as a final decision -- HR
 reviews every candidate regardless of score. In the UI, once a posting
 exists, HR can upload one or more resumes and see each as a score card.
 
-Not yet built: email inbox monitoring (planned: Gmail API) to actually
-receive applications.
+**Milestone 3 (resume intake, review, and screening invites) is done.**
+HR can open a drafted posting for applications (`POST /v1/postings`), which
+persists it and creates a dedicated resume-intake folder under
+`RESUME_INBOX_DIR/<postingId>/` -- this is the handoff point for the
+planned Gmail-monitoring agent, which will drop CV attachments there; until
+that exists, anything (or anyone) can drop files into it directly.
+`ResumeInboxWatcher` watches every open posting's folder (`java.nio.file.
+WatchService`, re-registered for already-open postings on restart), scores
+whatever shows up the same way as the manual upload flow, and moves the
+file into a `processed/` or `failed/` subfolder so it's never reprocessed.
+Postings and candidates are persisted as JSON files under `DATA_DIR`
+(no database -- consistent with this project's preference for no new
+infrastructure until something needs it), so none of this depends on a
+browser staying open.
+
+The `/candidates` page lists every open posting with its pending and
+decided candidates. HR approves or rejects each one explicitly -- nothing
+is automatic. Approving sends a screening-interview email through
+`EmailSender`, an interface kept deliberately provider-agnostic (per the
+user's request) with two implementations: `LoggingEmailSender` (the
+default -- logs what would be sent, so the feature works with zero
+credentials) and `SmtpEmailSender` (Jakarta Mail, activated by setting
+`SMTP_HOST`/`SMTP_USERNAME`/`SMTP_PASSWORD`). A candidate can't be approved
+without an email on file (the model only ever copies one it finds in the
+resume -- never invents one), so HR is prompted to add one manually if
+needed. Rejecting does nothing further.
+
+Not yet built: the Gmail-monitoring agent itself, which will watch an
+inbox and drop CV attachments into these per-posting folders.
 
 ## Running it locally
 

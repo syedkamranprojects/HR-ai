@@ -14,6 +14,9 @@ public record ResumeScore(
         @Description("the candidate's name as it appears on the resume; 'Unknown' if it can't be determined")
         String candidateName,
 
+        @Description("the candidate's email address, copied exactly as it appears in the resume; null if none is present -- never invent or guess one")
+        String candidateEmail,
+
         @Description("0-100: how well the resume's skills and experience match the posting's requirements. Based only on job-relevant qualifications -- never on name, age, gender, or other characteristics the resume might reveal")
         int fitScore,
 

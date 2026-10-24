@@ -7,6 +7,10 @@ dependency-reduced-pom.xml
 ui/node_modules/
 ui/dist/
 
+# Runtime data: persisted postings/candidates and the resume-intake folders
+data/
+inbox/
+
 # Env files (never commit real secrets)
 .env
 *.env

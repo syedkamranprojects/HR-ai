@@ -35,6 +35,10 @@ public final class ResumeScorer {
             score in any way. If a must-have requirement isn't clearly
             addressed in the resume, list it as missing rather than assuming
             the candidate has it.
+
+            Also copy the candidate's email address exactly as it appears in
+            the resume, if one is present -- this is only for contacting
+            them, never for scoring, and must never be guessed or invented.
             """;
 
     private final ChatModel model;
