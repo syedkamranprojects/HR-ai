@@ -94,6 +94,78 @@ function PostingCard({ posting, onCopy, copied }) {
   )
 }
 
+function ScoreCard({ entry }) {
+  return (
+    <div className="score-card">
+      <div className="score-card-header">
+        <h3>{entry.fileName}</h3>
+        {entry.status === 'done' && <span className="score-badge">{entry.score.fitScore}/100</span>}
+      </div>
+
+      {entry.status === 'scoring' && <p className="subtitle score-status">Scoring…</p>}
+      {entry.status === 'error' && <div className="error-banner">{entry.error}</div>}
+
+      {entry.status === 'done' && (
+        <>
+          <p className="score-candidate-name">{entry.score.candidateName}</p>
+          <p>{entry.score.summary}</p>
+
+          <div className="posting-section">
+            <h4>Must-have: matched</h4>
+            {entry.score.matchedMustHave.length > 0 ? (
+              <ul>
+                {entry.score.matchedMustHave.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="score-none">None</p>
+            )}
+          </div>
+
+          {entry.score.missingMustHave.length > 0 && (
+            <div className="posting-section">
+              <h4>Must-have: missing</h4>
+              <ul>
+                {entry.score.missingMustHave.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {entry.score.matchedPreferred.length > 0 && (
+            <div className="posting-section">
+              <h4>Preferred: matched</h4>
+              <ul>
+                {entry.score.matchedPreferred.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {entry.score.missingPreferred.length > 0 && (
+            <div className="posting-section">
+              <h4>Preferred: missing</h4>
+              <ul>
+                {entry.score.missingPreferred.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="posting-section">
+            <h4>For HR</h4>
+            <p className="score-recommendation">{entry.score.recommendation}</p>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function PostJobPage() {
   const [messages, setMessages] = useState([]) // { id, role: 'user'|'assistant', text?, posting? }
   const [draft, setDraft] = useState('')
@@ -101,7 +173,11 @@ export default function PostJobPage() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
+  const [candidateScores, setCandidateScores] = useState([]) // { id, fileName, status, score?, error? }
   const bottomRef = useRef(null)
+  const resumeInputRef = useRef(null)
+
+  const latestPosting = [...messages].reverse().find((m) => m.role === 'assistant')?.posting ?? null
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -183,7 +259,44 @@ export default function PostJobPage() {
     setMessages([])
     setDraft('')
     setError(null)
+    setCandidateScores([])
   }, [])
+
+  const handleResumeFiles = useCallback(
+    async (fileList) => {
+      if (!latestPosting) return
+      const files = Array.from(fileList)
+      if (files.length === 0) return
+
+      const entries = files.map((file) => ({ id: crypto.randomUUID(), fileName: file.name, status: 'scoring' }))
+      setCandidateScores((prev) => [...entries, ...prev])
+
+      await Promise.all(
+        files.map(async (file, i) => {
+          const entryId = entries[i].id
+          try {
+            const formData = new FormData()
+            formData.append('resume', file)
+            formData.append('posting', JSON.stringify(latestPosting))
+            const res = await fetch(`${JOBS_URL}/v1/score-resume`, { method: 'POST', body: formData })
+            if (!res.ok) throw new Error(`Request failed (${res.status})`)
+            const score = await res.json()
+            setCandidateScores((prev) =>
+              prev.map((e) => (e.id === entryId ? { ...e, status: 'done', score } : e)),
+            )
+          } catch (err) {
+            console.error(err)
+            setCandidateScores((prev) =>
+              prev.map((e) =>
+                e.id === entryId ? { ...e, status: 'error', error: 'Could not score this resume.' } : e,
+              ),
+            )
+          }
+        }),
+      )
+    },
+    [latestPosting],
+  )
 
   return (
     <div className="card conversation-card">
@@ -232,6 +345,38 @@ export default function PostJobPage() {
         )}
         <div ref={bottomRef} />
       </div>
+
+      {latestPosting && (
+        <div className="score-section">
+          <div className="score-section-row">
+            <span>
+              Score resumes against <strong>{latestPosting.title}</strong>
+              <span className="optional"> -- advisory only; HR reviews every candidate</span>
+            </span>
+            <button className="copy-button" onClick={() => resumeInputRef.current?.click()}>
+              Upload resume(s)
+            </button>
+            <input
+              ref={resumeInputRef}
+              type="file"
+              accept=".pdf,.txt,text/plain,application/pdf"
+              multiple
+              hidden
+              onChange={(e) => {
+                handleResumeFiles(e.target.files)
+                e.target.value = ''
+              }}
+            />
+          </div>
+          {candidateScores.length > 0 && (
+            <div className="score-list">
+              {candidateScores.map((entry) => (
+                <ScoreCard key={entry.id} entry={entry} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <label className="email-row">
         Application email <span className="optional">(optional, but recommended)</span>

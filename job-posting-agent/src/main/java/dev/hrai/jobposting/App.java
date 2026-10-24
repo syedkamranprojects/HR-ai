@@ -3,13 +3,16 @@ package dev.hrai.jobposting;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.hrai.jobposting.agent.JobPostingDrafter;
+import dev.hrai.jobposting.agent.ResumeScorer;
 import dev.hrai.jobposting.http.DraftPostingHandler;
+import dev.hrai.jobposting.http.ScoreResumeHandler;
 import io.javalin.Javalin;
 
 /**
  * Job posting agent: HR gives a free-text role description, this drafts a
- * structured posting for HR to review and post manually. First milestone of
- * job-posting-agent -- resume screening and inbox monitoring come later.
+ * structured posting for HR to review and post manually, and scores
+ * uploaded resumes against a posting's criteria -- purely advisory, HR
+ * reviews every candidate. Email inbox monitoring is not yet built.
  */
 public final class App {
 
@@ -27,12 +30,14 @@ public final class App {
         }
 
         JobPostingDrafter drafter = new JobPostingDrafter(groqBaseUrl, groqApiKey, groqModel);
+        ResumeScorer resumeScorer = new ResumeScorer(groqBaseUrl, groqApiKey, groqModel);
         ObjectMapper objectMapper = new ObjectMapper()
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
         Javalin app = Javalin.create(config -> config.bundledPlugins.enableCors(cors -> cors.addRule(rule -> rule.anyHost())));
         app.get("/health", ctx -> ctx.result("ok"));
         app.post("/v1/draft-posting", new DraftPostingHandler(drafter, objectMapper));
+        app.post("/v1/score-resume", new ScoreResumeHandler(resumeScorer, objectMapper));
 
         app.start(port);
     }

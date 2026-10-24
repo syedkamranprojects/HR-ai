@@ -36,8 +36,21 @@ for pasting into LinkedIn or the careers page. HR always posts it manually;
 nothing here publishes on its own. The conversation only persists for the
 current browser session (no backend storage yet).
 
-Not yet built: email inbox monitoring (planned: Gmail API) and resume
-parsing/scoring against a posting's criteria.
+**Milestone 2 (resume scoring) is done.** `POST /v1/score-resume` takes a
+multipart upload -- a resume (PDF via Apache PDFBox, or plain text) and the
+`posting` JSON to score it against (exactly what `/v1/draft-posting`
+returns; there's no backend storage of postings, so the client sends the
+one it has) -- and returns a `ResumeScore`: a 0-100 fit score, which
+must-have/preferred criteria matched or are missing, a short rationale, and
+an advisory recommendation. This is purely advisory: the model is
+instructed to score only on job-relevant skills/experience actually
+evidenced in the resume (never on name, age, gender, or anything else it
+might reveal) and to never phrase anything as a final decision -- HR
+reviews every candidate regardless of score. In the UI, once a posting
+exists, HR can upload one or more resumes and see each as a score card.
+
+Not yet built: email inbox monitoring (planned: Gmail API) to actually
+receive applications.
 
 ## Running it locally
 
@@ -60,6 +73,10 @@ Or test the backend directly:
 curl http://localhost:8081/v1/draft-posting \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"We need a mid-level backend engineer who knows Java and Spring Boot..."}],"applicationEmail":"careers@centegytechnologies.com"}'
+
+curl http://localhost:8081/v1/score-resume \
+  -F "resume=@/path/to/resume.pdf" \
+  --form-string "posting=<paste the JobPosting JSON from above>"
 ```
 
 See [`.env.example`](.env.example) for backend configuration.
