@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 const JOBS_URL = import.meta.env.VITE_JOBS_URL || 'http://localhost:8081'
 
@@ -26,42 +26,125 @@ function postingAsText(posting) {
   return lines.join('\n')
 }
 
+// What the model itself said last turn, so it can refine its own prior
+// output -- the applicationEmail is HR-supplied, not model-generated, so it
+// stays out of the model's own conversation memory.
+function draftAsHistoryContent(posting) {
+  const { applicationEmail: _applicationEmail, ...draft } = posting
+  return JSON.stringify(draft)
+}
+
+function PostingCard({ posting, onCopy, copied }) {
+  return (
+    <div className="posting-card">
+      <div className="posting-card-header">
+        <h3>{posting.title}</h3>
+        <span className="posting-card-meta">
+          {[posting.employmentType, posting.location].filter(Boolean).join(' · ')}
+        </span>
+      </div>
+      <p>{posting.summary}</p>
+
+      <div className="posting-section">
+        <h4>Must-have requirements</h4>
+        <ul>
+          {posting.mustHaveRequirements.map((r, i) => (
+            <li key={i}>{r}</li>
+          ))}
+        </ul>
+      </div>
+
+      {posting.preferredCriteria.length > 0 && (
+        <div className="posting-section">
+          <h4>Preferred</h4>
+          <ul>
+            {posting.preferredCriteria.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {posting.educationRequirements.length > 0 && (
+        <div className="posting-section">
+          <h4>Education</h4>
+          <ul>
+            {posting.educationRequirements.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="posting-section">
+        <h4>Apply to</h4>
+        {posting.applicationEmail ? (
+          <p className="posting-email">{posting.applicationEmail}</p>
+        ) : (
+          <p className="posting-email-missing">
+            No application email set -- add one below before posting this externally.
+          </p>
+        )}
+      </div>
+
+      <button className="copy-button posting-card-copy" onClick={onCopy}>
+        {copied ? 'Copied!' : 'Copy as text'}
+      </button>
+    </div>
+  )
+}
+
 export default function PostJobPage() {
-  const [prompt, setPrompt] = useState('')
+  const [messages, setMessages] = useState([]) // { id, role: 'user'|'assistant', text?, posting? }
+  const [draft, setDraft] = useState('')
   const [applicationEmail, setApplicationEmail] = useState('')
-  const [drafts, setDrafts] = useState([])
-  const [expandedId, setExpandedId] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
+  const bottomRef = useRef(null)
 
-  const handleSubmit = useCallback(
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages.length])
+
+  const handleSend = useCallback(
     async (e) => {
       e.preventDefault()
-      if (!prompt.trim()) return
-      setSubmitting(true)
+      const text = draft.trim()
+      if (!text || sending) return
+
+      const userMessage = { id: crypto.randomUUID(), role: 'user', text }
+      const nextMessages = [...messages, userMessage]
+      setMessages(nextMessages)
+      setDraft('')
+      setSending(true)
       setError(null)
+
       try {
+        const historyPayload = nextMessages.map((m) => ({
+          role: m.role,
+          content: m.role === 'user' ? m.text : draftAsHistoryContent(m.posting),
+        }))
         const res = await fetch(`${JOBS_URL}/v1/draft-posting`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: prompt.trim(), applicationEmail: applicationEmail.trim() || null }),
+          body: JSON.stringify({ messages: historyPayload, applicationEmail: applicationEmail.trim() || null }),
         })
         if (!res.ok) throw new Error(`Request failed (${res.status})`)
         const posting = await res.json()
-        const id = crypto.randomUUID()
-        setDrafts((prev) => [{ id, posting }, ...prev])
-        setExpandedId(id)
-        setPrompt('')
-        setApplicationEmail('')
+        setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', posting }])
       } catch (err) {
-        setError('Could not draft a posting. Please try again.')
+        setError(
+          messages.length === 0
+            ? 'Could not draft a posting. Please try again.'
+            : 'Could not apply that change. Please try again.',
+        )
         console.error(err)
       } finally {
-        setSubmitting(false)
+        setSending(false)
       }
     },
-    [prompt, applicationEmail],
+    [draft, sending, messages, applicationEmail],
   )
 
   const copyText = useCallback((id, posting) => {
@@ -71,135 +154,86 @@ export default function PostJobPage() {
     })
   }, [])
 
-  const removeDraft = useCallback((id) => {
-    setDrafts((prev) => prev.filter((d) => d.id !== id))
-    setExpandedId((prev) => (prev === id ? null : prev))
+  const startOver = useCallback(() => {
+    setMessages([])
+    setDraft('')
+    setError(null)
   }, [])
 
   return (
-    <div className="admin-page">
-      <div className="card admin-card">
-        <h1>Draft a job posting</h1>
-        <p className="subtitle">
-          Describe the role in your own words -- skills needed, seniority, location, anything
-          that matters. The assistant drafts a structured posting for you to review and edit
-          before posting it to LinkedIn or the careers page yourself; it never posts anything on
-          its own.
-        </p>
-
-        {error && <div className="error-banner">{error}</div>}
-
-        <form className="admin-form" onSubmit={handleSubmit}>
-          <label>
-            Role description
-            <textarea
-              className="posting-prompt"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g. We need a mid-level backend engineer who knows Java and Spring Boot, has worked with Postgres, and ideally has some AWS experience. Remote-friendly, full-time."
-              rows={4}
-              required
-            />
-          </label>
-          <label>
-            Where should applicants send their resume? <span className="optional">(optional, but recommended)</span>
-            <input
-              type="email"
-              value={applicationEmail}
-              onChange={(e) => setApplicationEmail(e.target.value)}
-              placeholder="e.g. careers@centegytechnologies.com"
-            />
-          </label>
-          <button type="submit" className="start-button admin-submit" disabled={submitting || !prompt.trim()}>
-            {submitting ? 'Drafting…' : 'Draft Posting'}
-          </button>
-        </form>
-      </div>
-
-      <div className="card admin-card">
-        <h1>Drafted postings</h1>
-        {drafts.length === 0 ? (
-          <p className="subtitle">No postings drafted yet this session.</p>
-        ) : (
-          <ul className="session-list">
-            {drafts.map(({ id, posting }) => (
-              <li key={id} className="posting-item">
-                <div className="session-row">
-                  <div>
-                    <div className="session-name">{posting.title}</div>
-                    <div className="session-meta">
-                      {[posting.employmentType, posting.location].filter(Boolean).join(' · ') || 'No extra details'}
-                    </div>
-                  </div>
-                  <div className="posting-actions">
-                    <button
-                      className="copy-button"
-                      onClick={() => setExpandedId((prev) => (prev === id ? null : id))}
-                    >
-                      {expandedId === id ? 'Hide' : 'View'}
-                    </button>
-                    <button className="copy-button" onClick={() => copyText(id, posting)}>
-                      {copiedId === id ? 'Copied!' : 'Copy text'}
-                    </button>
-                    <button className="remove-button" onClick={() => removeDraft(id)} aria-label="Remove draft">
-                      ×
-                    </button>
-                  </div>
-                </div>
-
-                {expandedId === id && (
-                  <div className="posting-detail">
-                    <p>{posting.summary}</p>
-
-                    <div className="posting-section">
-                      <h3>Must-have requirements</h3>
-                      <ul>
-                        {posting.mustHaveRequirements.map((r, i) => (
-                          <li key={i}>{r}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {posting.preferredCriteria.length > 0 && (
-                      <div className="posting-section">
-                        <h3>Preferred</h3>
-                        <ul>
-                          {posting.preferredCriteria.map((r, i) => (
-                            <li key={i}>{r}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {posting.educationRequirements.length > 0 && (
-                      <div className="posting-section">
-                        <h3>Education</h3>
-                        <ul>
-                          {posting.educationRequirements.map((r, i) => (
-                            <li key={i}>{r}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    <div className="posting-section">
-                      <h3>Apply to</h3>
-                      {posting.applicationEmail ? (
-                        <p className="posting-email">{posting.applicationEmail}</p>
-                      ) : (
-                        <p className="posting-email-missing">
-                          No application email set -- add one before posting this externally, so
-                          candidates know where to send their resume.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+    <div className="card conversation-card">
+      <div className="conversation-header">
+        <div className="conversation-header-row">
+          <h1>Draft a job posting</h1>
+          {messages.length > 0 && (
+            <button className="copy-button" onClick={startOver}>
+              Start over
+            </button>
+          )}
+        </div>
+        {messages.length === 0 && (
+          <p className="subtitle">
+            Describe the role in your own words. You'll get a structured draft back, and can keep
+            asking for changes -- "make it stricter", "drop the Docker requirement" -- until it's
+            ready. HR always reviews and posts it manually; nothing here publishes on its own.
+          </p>
         )}
       </div>
+
+      {error && <div className="error-banner">{error}</div>}
+
+      <div className="transcript">
+        {messages.length === 0 ? (
+          <div className="transcript-empty">Your conversation will appear here.</div>
+        ) : (
+          messages.map((m) => (
+            <div key={m.id} className={`bubble-row ${m.role === 'user' ? 'local' : 'remote'}`}>
+              {m.role === 'user' ? (
+                <div className="bubble">{m.text}</div>
+              ) : (
+                <PostingCard
+                  posting={m.posting}
+                  onCopy={() => copyText(m.id, m.posting)}
+                  copied={copiedId === m.id}
+                />
+              )}
+            </div>
+          ))
+        )}
+        {sending && (
+          <div className="bubble-row remote">
+            <div className="bubble bubble-thinking">Drafting…</div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      <label className="email-row">
+        Application email <span className="optional">(optional, but recommended)</span>
+        <input
+          type="email"
+          value={applicationEmail}
+          onChange={(e) => setApplicationEmail(e.target.value)}
+          placeholder="e.g. careers@centegytechnologies.com"
+        />
+      </label>
+
+      <form className="chat-input-row" onSubmit={handleSend}>
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={
+            messages.length === 0
+              ? 'e.g. Mid-level backend engineer, Java and Spring Boot, remote, full-time…'
+              : 'Ask for a change…'
+          }
+          className="chat-input"
+        />
+        <button type="submit" className="send-button" disabled={!draft.trim() || sending}>
+          Send
+        </button>
+      </form>
     </div>
   )
 }
