@@ -20,15 +20,21 @@ hiring-decision tools).
 **Milestone 1 (job posting drafter, backend + UI) is done.** Backend: Java +
 LangChain4j, same stack and Groq provider as
 [`on-boarding-agent/brain`](../on-boarding-agent/brain/), for consistency.
-Given a free-text role description, `POST /v1/draft-posting` returns a
-structured draft (title, must-have requirements, preferred criteria,
-education, employment type, location) as JSON. UI: a React (Vite) page,
-styled to match `on-boarding-agent/ui`'s layout and branding (same color
-tokens, card/topbar CSS, Centegy logo), where HR types a role description
-and gets back a reviewable draft with a "copy as text" action for pasting
-into LinkedIn or the careers page -- HR always posts it manually; nothing
-here publishes on its own. Drafts only persist for the current browser
-session (no backend storage yet).
+`POST /v1/draft-posting` takes a message history (initial role description,
+then optional follow-up refinement turns -- "make it stricter", "drop the
+Docker requirement") and returns a structured draft (title, must-have
+requirements, preferred criteria, education, employment type, location,
+application email) as JSON; the client resends the full history each call,
+same pattern as `on-boarding-agent/brain`'s chat endpoint. The application
+email is always HR-supplied, never model-generated, so it's never a guess.
+
+UI: a React (Vite) page styled to match `on-boarding-agent/ui`'s layout and
+branding (same color tokens, card/topbar CSS, Centegy logo), as a real chat
+conversation -- HR's instructions as bubbles, each reply rendered as a
+structured posting card inline in the thread, with a "copy as text" action
+for pasting into LinkedIn or the careers page. HR always posts it manually;
+nothing here publishes on its own. The conversation only persists for the
+current browser session (no backend storage yet).
 
 Not yet built: email inbox monitoring (planned: Gmail API) and resume
 parsing/scoring against a posting's criteria.
@@ -53,7 +59,7 @@ Or test the backend directly:
 ```
 curl http://localhost:8081/v1/draft-posting \
   -H "Content-Type: application/json" \
-  -d '{"prompt":"We need a mid-level backend engineer who knows Java and Spring Boot..."}'
+  -d '{"messages":[{"role":"user","content":"We need a mid-level backend engineer who knows Java and Spring Boot..."}],"applicationEmail":"careers@centegytechnologies.com"}'
 ```
 
 See [`.env.example`](.env.example) for backend configuration.
